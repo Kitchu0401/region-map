@@ -1,0 +1,205 @@
+<html>
+<head>
+<title>Malifaux Battle Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
+<script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js" integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw==" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
+<script src="get-random-values.js"></script>
+<script src="data-region.js"></script>
+<script src="data-game.js"></script>
+<style>
+  #map { height: 640px; }
+
+  .user-crew-roaster {
+    min-width: 250px !important; 
+    white-space: pre-line;
+  }
+</style>
+</head>
+<body>
+
+  <div class="ui container">
+    <div class="ui segment">
+
+      <!--
+      <div class="ui left very close rail">
+        <div class="ui segment">
+          Left Rail Content
+        </div>
+      </div>
+
+      <div class="ui right very close rail">
+        <div class="ui segment">
+          Right Rail Content
+        </div>
+      </div>
+      -->
+
+      <div id="map"></div>
+
+      <div id="record-list">
+        <div class="ui horizontal segments" v-for="r in records">
+            <div class="ui segment user-crew-roaster">
+              <p v-text="r.attacker.info.crew"></p>
+            </div>
+            <div class="ui segment">
+
+              <div class="ui three column grid">
+                <!-- Attacker info -->
+                <div class="column">
+                  <div class="ui fluid card">
+                    <div class="image">
+                      <img v-bind:src="'image/' + r.attacker.info.picture">
+                    </div>
+                    <div class="content">
+                      <a class="header">{{ r.attacker.info.name }}</a>
+                      <div class="meta">
+                        <span class="date">{{ r.attacker.info.faction }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="column"></div>
+
+                <!-- Defender info -->
+                <div class="column">
+                  <div class="ui fluid card">
+                    <div class="image">
+                      <img v-bind:src="'image/' + r.defender.info.picture">
+                    </div>
+                    <div class="content">
+                      <a class="header">{{ r.defender.info.name }}</a>
+                      <div class="meta">
+                        <span class="date">{{ r.defender.info.faction }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div class="ui segment user-crew-roaster">
+              <p v-text="r.defender.info.crew"></p>
+            </div>
+          </div>
+      </div>
+      
+    </div>
+  </div>
+
+<script>
+  // Global vue components
+  var components = {};
+
+  window.onload = function () {
+    var gameData = getGameData();
+
+    console.log(gameData.record);
+    // console.log(gameData.record.map(function (r) { return r.regionCode; }));
+    // gameData.record.forEach(function (r) { console.log([r.attacker.info.uuid, r.defender.info.uuid, r.attacker.info.uuid === r.defender.info.uuid]); });
+    // gameData.record.forEach(function (r) { console.log([r.attacker.point, r.defender.point, r.attacker.win, r.defender.win]); });
+    // gameData.record.forEach(function (r) { console.log(r.datetime); });
+
+    components.map = initMap(gameData.territory);
+    components.recordList = initRecordList(gameData.record);
+  };
+
+  /**
+   * Initializing leaflat map
+   */
+  function initMap (territoryData) {
+    var map = L.map('map').setView([37.5664700, 126.9779630], 16);
+
+    // Adding tile layer
+    L.tileLayer(
+      'http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png',
+      {
+        attribution: `
+          <a href="http://content.stamen.com/dotspotting_toner_cartography_available_for_download">Stamen Toner</a>,
+          <a href="http://www.openstreetmap.org">OpenStreetMap</a>,
+          <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>`,
+        maxZoom: 16,
+        minZoom: 16
+      }
+    ).addTo(map);
+
+    // Adding polygons
+    L.geoJSON(territoryData, { style: generateTerritoryStyle })
+      .on('click', onClickTerritory)
+      .addTo(map);
+
+    // Test: popup
+    // var popup = L.popup()
+    // .setLatLng([37.5664700, 126.9779630])
+    // .setContent('<p>Hello world!<br />This is a nice popup.</p>')
+    // .openOn(map);
+
+    return map;
+  }
+  
+  /**
+   * Initializing record list vue instance
+   */
+  function initRecordList (records) {
+    return new Vue({
+      el: '#record-list',
+      data: {
+        region: null
+      },
+      computed: {
+        records: function () {
+          var _regionCode = this.region;
+          return records.filter(function (r) {
+            // console.log(r)
+            return _regionCode == null || _regionCode === r.region.code;
+          })
+        }
+      }
+    });
+  }
+
+  /**
+   * Generate territory style
+   * based on its status information
+   */
+  function generateTerritoryStyle (f) {
+    var style = {
+      opacity: 1,
+      color: 'black',
+      weight: '3',
+      fillOpacity: 0.5,
+      fillColor: 'black',
+    };
+
+    var i = f.properties.index;
+
+    if (i < 5) {
+      style.fillColor = 'red';
+    } else if (5 <= i && i < 15) {
+      style.fillColor = 'blue';
+    } else if (15 <= i && i < 22 ) {
+      style.fillColor = 'purple';
+    } else if (31 <= i) {
+      style.fillColor = 'yellow';
+    }
+
+    return style;
+  }
+
+  function onClickTerritory (t) {
+    console.log(t);
+
+    components.map.eachLayer(function (l) {
+      if (!l.setStyle) return;
+      
+      l.setStyle({ fillOpacity: t.layer._leaflet_id === l._leaflet_id ? '0.8' : '0.5' });
+      components.map.openTooltip('You clicked here!', t.latlng);
+      components.recordList._data.region
+    });
+    
+  }
+</script>
+</body>
+</html>
