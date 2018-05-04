@@ -1,15 +1,18 @@
 <html>
 <head>
-<title>Malifaux Battle Map</title>
+<title>Region Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
 <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js" integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw==" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
-<script src="get-random-values.js"></script>
-<script src="data-region.js"></script>
-<script src="data-game.js"></script>
+<script src="script/get-random-values.js"></script>
+<script src="data/region.js" charset="UTF-8"></script>
+<script src="data/game.js" charset="UTF-8"></script>
 <style>
-  #map { height: 640px; }
+  #map {
+    height: 640px;
+    margin-bottom: 16px;
+  }
 
   .user-crew-roaster {
     min-width: 250px !important; 
@@ -19,7 +22,7 @@
 </head>
 <body>
 
-  <div class="ui container">
+  <div class="ui container" id="app">
     <div class="ui segment">
 
       <!--
@@ -38,56 +41,15 @@
 
       <div id="map"></div>
 
-      <div id="record-list">
-        <div class="ui horizontal segments" v-for="r in records">
-            <div class="ui segment user-crew-roaster">
-              <p v-text="r.attacker.info.crew"></p>
-            </div>
-            <div class="ui segment">
-
-              <div class="ui three column grid">
-                <!-- Attacker info -->
-                <div class="column">
-                  <div class="ui fluid card">
-                    <div class="image">
-                      <img v-bind:src="'image/' + r.attacker.info.picture">
-                    </div>
-                    <div class="content">
-                      <a class="header">{{ r.attacker.info.name }}</a>
-                      <div class="meta">
-                        <span class="date">{{ r.attacker.info.faction }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="column"></div>
-
-                <!-- Defender info -->
-                <div class="column">
-                  <div class="ui fluid card">
-                    <div class="image">
-                      <img v-bind:src="'image/' + r.defender.info.picture">
-                    </div>
-                    <div class="content">
-                      <a class="header">{{ r.defender.info.name }}</a>
-                      <div class="meta">
-                        <span class="date">{{ r.defender.info.faction }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-            <div class="ui segment user-crew-roaster">
-              <p v-text="r.defender.info.crew"></p>
-            </div>
-          </div>
-      </div>
+      <record-list></record-list>
       
     </div>
   </div>
+
+<script type="text/x-template">
+  <!-- User card -->
+  
+</script>
 
 <script>
   // Global vue components
@@ -96,21 +58,158 @@
   window.onload = function () {
     var gameData = getGameData();
 
-    console.log(gameData.record);
+    // console.log(gameData.record);
     // console.log(gameData.record.map(function (r) { return r.regionCode; }));
     // gameData.record.forEach(function (r) { console.log([r.attacker.info.uuid, r.defender.info.uuid, r.attacker.info.uuid === r.defender.info.uuid]); });
     // gameData.record.forEach(function (r) { console.log([r.attacker.point, r.defender.point, r.attacker.win, r.defender.win]); });
     // gameData.record.forEach(function (r) { console.log(r.datetime); });
 
+    initVueComponents(gameData);
+
     components.map = initMap(gameData.territory);
-    components.recordList = initRecordList(gameData.record);
+    // components.recordList = initRecordList(gameData.record);
   };
+
+  /**
+   * Initializing vue components
+   */
+  function initVueComponents (data) {
+    Vue.component('user-card', {
+      template: `
+        <div class="column">
+          <div v-bind:class="cardClass">
+            <div class="image">
+              <img
+                v-bind:src="imageSrc"
+                v-bind:style="imageStyle">
+            </div>
+            <div class="content">
+              <a class="header" v-text="user.info.name"></a>
+              <div class="meta">
+                <span class="red" v-text="user.info.faction.name"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
+      props: ['user', 'side'],
+      computed: {
+        cardClass: function () { return `ui fluid card ${this.user.info.faction.color}`; },
+        imageSrc: function () { return `image/${this.user.info.picture}`; },
+        imageStyle: function () { return { opacity: this.user.result === RESULT.LOSE ? 0.2 : 1.0 }; }
+      }
+    });
+
+    
+    Vue.component('record-row', {
+      template: `
+        <div class="ui segments">
+
+          <!-- Record header -->
+          <div class="ui segment">
+            Battle in <strong v-text="record.region.title"></strong>, <span class="date" v-text="formattedDate"></span>
+          </div>
+          <!-- // Record header -->
+
+          <!-- Record body -->
+          <div class="ui horizontal segments" style="display: none;">
+            <div class="ui segment user-crew-roaster">
+              <p v-text="record.attacker.info.crew"></p>
+            </div>
+  
+            <div class="ui segment">
+  
+              <div class="ui three column grid">
+
+                <!-- Attacker info -->
+                <user-card
+                  v-bind:user="record.attacker"
+                  v-bind:side="'attacker'">
+                </user-card>
+                <!-- // Attacker info -->
+  
+                <!-- Record summary -->
+                <div class="column" style="display: flex; justify-content: center; align-items: center;">
+                  <div class="ui three column grid">
+                    <div class="column" style="text-align: center; font-size: 2.5em;" v-text="record.attacker.point"></div>
+                    <div class="column" style="text-align: center; font-size: 1.0em;" v-text="'VS'"></div>
+                    <div class="column" style="text-align: center; font-size: 2.5em;" v-text="record.defender.point"></div>
+                  </div>
+                </div>
+                <!-- // Record summary -->
+  
+                <!-- Defender info -->
+                <user-card
+                  v-bind:user="record.defender"
+                  v-bind:side="'defender'">
+                </user-card>
+                <!-- // Defender info -->
+              </div>
+  
+            </div>
+  
+            <!-- Defender roaster -->
+            <div class="ui segment user-crew-roaster">
+              <p v-text="record.defender.info.crew"></p>
+            </div>
+            <!-- // Defender roaster -->
+
+          </div>
+          <!-- // Record body -->
+            
+        </div>
+      `,
+      props: ['record'],
+      computed: {
+        formattedDate: function () {
+          // console.log(typeof this.record.datetime);
+          // return this.record.datetime.toJSON();
+          return this.record.datetime.getTime();
+        }
+      }
+    });
+
+    Vue.component('record-list', {
+      template: `
+        <div>
+          <record-row
+            v-for="(r, index) in this.filteredRecords()"
+            v-bind:record="r"
+            v-bind:key="index">
+          </record-row>
+        </div>
+      `,
+      data: function () {
+        return {
+          region: null,
+          records: data.record
+        }
+      },
+      computed: {
+        filteredRecords: function () {
+          var _regionCode = this.region;
+          return this.records
+            .filter(function (r) { return _regionCode == null || _regionCode === r.region.code; })
+            .sort(function (p, n) { return p.datetime < n.datetime; });
+        }
+      }
+    });
+  }
 
   /**
    * Initializing leaflat map
    */
   function initMap (territoryData) {
     var map = L.map('map').setView([37.5664700, 126.9779630], 16);
+
+    map.on('click', function () {
+        map.eachLayer(function (l) {
+          if (!l.setStyle) return;
+          
+          l.setStyle({ fillOpacity: '0.5' });
+          components.recordList._data.region = null;
+        });
+      });
 
     // Adding tile layer
     L.tileLayer(
@@ -139,26 +238,25 @@
     return map;
   }
   
-  /**
-   * Initializing record list vue instance
-   */
-  function initRecordList (records) {
-    return new Vue({
-      el: '#record-list',
-      data: {
-        region: null
-      },
-      computed: {
-        records: function () {
-          var _regionCode = this.region;
-          return records.filter(function (r) {
-            // console.log(r)
-            return _regionCode == null || _regionCode === r.region.code;
-          })
-        }
-      }
-    });
-  }
+  // /**
+  //  * Initializing record list vue instance
+  //  */
+  // function initRecordList (records) {
+  //   return new Vue({
+  //     el: '#record-list',
+  //     data: {
+  //       region: null
+  //     },
+  //     computed: {
+  //       filteredRecords: function () {
+  //         var _regionCode = this.region;
+  //         return records
+  //           .sort(function (p, n) { return p.datetime < n.datetime; })
+  //           .filter(function (r) { return _regionCode == null || _regionCode === r.region.code; });
+  //       }
+  //     }
+  //   });
+  // }
 
   /**
    * Generate territory style
@@ -171,6 +269,7 @@
       weight: '3',
       fillOpacity: 0.5,
       fillColor: 'black',
+      bubblingMouseEvents: false
     };
 
     var i = f.properties.index;
@@ -189,14 +288,13 @@
   }
 
   function onClickTerritory (t) {
-    console.log(t);
-
+    // console.log('onclick territory', t);
+    components.map.openTooltip('You clicked here!', t.latlng);
     components.map.eachLayer(function (l) {
       if (!l.setStyle) return;
       
       l.setStyle({ fillOpacity: t.layer._leaflet_id === l._leaflet_id ? '0.8' : '0.5' });
-      components.map.openTooltip('You clicked here!', t.latlng);
-      components.recordList._data.region
+      components.recordList._data.region = t.layer.feature.properties.code || null;
     });
     
   }
