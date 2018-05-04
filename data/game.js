@@ -67,21 +67,7 @@ var crew = {
         Mannequin 4ss
         Anna Lovelace 9ss`,
 
-    'test-crew-uuid-2': `Leader: Von Schill - Cache:(1)
-        Nythera Aftermath 1ss
-        Oath of the Freikorps 1ss
-        Scout the Field 1ss
-        Steam Trunk 3ss
-        Hodgepodge Emissary 10ss
-        Conflux of Conflict 0ss
-        Sue 8ss
-        Return Fire 1ss
-        Freikorps Engineer 6ss
-        Freikorps Engineer 6ss
-        Hodgepodge Effigy 4ss
-        Freikorpsmann 5ss`,
-
-    'test-crew-uuid-3': `Leader: Wong - Cache:(3)
+    'test-crew-uuid-2': `Leader: Wong - Cache:(3)
         A Gremlin's Luck 1ss
         Old Cranky 4ss
         Sammy LaCroix 7ss
@@ -92,6 +78,21 @@ var crew = {
         Swine-Cursed 7ss
         Lightning Bug 5ss
         Lightning Bug 5ss`,
+
+    'test-crew-uuid-3': `Leader: Collodi - Cache:(3)
+        Strum the Threads 1ss 
+        Bag of Props 1ss 
+        Threads of Fate 1ss 
+        Marionette 3ss 
+        Marionette 3ss 
+        Marionette 3ss 
+        Brutal Effigy 4ss 
+        Arcane Effigy 4ss 
+        Beckoner 6ss 
+        Lazarus 10ss 
+        Retribution's eye 1ss 
+        Hannah 10ss 
+        Fears Given Form 1ss`,
 
     'test-crew-uuid-4': `Leader: Asami Tanaka - Cache:(3)
         Borrowed Time 1ss
@@ -104,19 +105,18 @@ var crew = {
         Mr. Tannen 6ss
         Tengu 4ss`,
 
-    'test-crew-uuid-5': `Leader: Collodi - Cache:(3)
-        Fated 1ss
-        Strum the Threads 1ss
-        Threadsof Fate 1ss
-        Marionette 3ss
-        Marionette 3ss
-        Marionette 3ss
-        Hinamatsu 9ss
-        Fears Given Form 1ss
-        Brutal Effigy 4ss
-        Shadow Effigy 4ss
-        The Illuminated 7ss
-        Beckoner 6ss`,
+    'test-crew-uuid-5': `Leader: Leveticus - Cache:(1)
+        Pariah of Iron 1ss 
+        Untimely Demise 1ss 
+        From Ash 2ss 
+        Hollow Waif 0ss 
+        Hollow Waif 0ss 
+        Rusty Alyce 10ss 
+        From the Aether 2ss 
+        Peacekeeper 11ss 
+        Talos 8ss 
+        Lazarus 10ss 
+        Abomination 4ss`,
 
     'test-crew-uuid-6': `Leader: Lucius - Cache:(4)
         Deep Pockets 2ss
@@ -166,7 +166,7 @@ var user = {
       uuid: 'test-user-uuid-3',
       name: 'Behemoth',
       picture: 'picture_matthew.png',
-      faction: FACTION.OU,
+      faction: FACTION.NV,
       crew: crew["test-crew-uuid-3"]
   },
   'test-user-uuid-4': {
@@ -178,9 +178,9 @@ var user = {
   },
   'test-user-uuid-5': {
       uuid: 'test-user-uuid-5',
-      name: '그레이무클라',
+      name: '브이',
       picture: 'picture_helen.jpg',
-      faction: FACTION.NV,
+      faction: FACTION.OU,
       crew: crew["test-crew-uuid-5"]
   },
   'test-user-uuid-6': {
