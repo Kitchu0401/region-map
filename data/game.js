@@ -25,7 +25,7 @@ var FACTION = {
     },
     RS: {
         name: 'Resurrectionists',
-        color: 'red'
+        color: 'green'
     },
     NV: {
         name: 'Neverborn',
@@ -37,7 +37,7 @@ var FACTION = {
     },
     OU: {
         name: 'Outcasts',
-        color: 'red'
+        color: 'yellow'
     },
     TT: {
         name: 'Ten Thunders',
@@ -211,7 +211,7 @@ var frame_record = {
       point: function () { return getRandomInt(0, 11); },
       // result: RESULT.(WIN|LOSE|DRAW)
   },
-  datetime: function () { return new Date(2018, getRandomInt(1, 5), getRandomInt(1, 28), getRandomInt(12, 20), getRandomInt(0, 60)); }
+  datetime: function () { return new Date(2018, getRandomInt(1, 5), getRandomInt(1, 28), getRandomInt(12, 20), getRandomInt(0, 60)).getTime(); }
 };
 
 // Post processes
@@ -232,14 +232,26 @@ var post_process = {
     record: function () {
         // Import record data (Temporal)
         var recordData = generateRandomData(frame_record, 100);
-        // Sorting
-        return recordData
-            .map(function (r) {
-                r.defender.info = getRandomValue(user, r.attacker.info);
-                r.attacker.result = r.attacker.point === r.defender.point ? RESULT.DRAW : r.attacker.point > r.defender.point ? RESULT.WIN : RESULT.LOSE;
-                r.defender.result = r.attacker.point === r.defender.point ? RESULT.DRAW : r.attacker.point < r.defender.point ? RESULT.WIN : RESULT.LOSE;
-                return r;
-            });
+        return _.orderBy(recordData, ['datetime'], ['asc']).map(function (r) {
+            var winner;
+            r.defender.info = getRandomValue(user, r.attacker.info);
+            if (r.attacker.point > r.defender.point) {
+                r.attacker.result = RESULT.WIN;
+                r.defender.result = RESULT.LOSE;
+                winner = r.attacker.info.faction;
+            } else if (r.attacker.point < r.defender.point) {
+                r.attacker.result = RESULT.LOSE;
+                r.defender.result = RESULT.WIN;
+                winner = r.defender.info.faction;
+            } else {
+                r.attacker.result = RESULT.DRAW;
+                r.defender.result = RESULT.DRAW;
+            }
+            
+            // Update territory occupation
+            if (!!winner) _.find(_result.territory.features, function (t) { return t.properties.code === r.region.code; }).properties.occupiedBy = winner;
+            return r;
+        });
     }
 }
 

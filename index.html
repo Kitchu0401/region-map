@@ -3,6 +3,8 @@
 <title>Region Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.10/lodash.min.js"></script>
+<script src="https://momentjs.com/downloads/moment.js"></script>
 <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js" integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw==" crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
 <script src="script/get-random-values.js"></script>
@@ -41,7 +43,10 @@
 
       <div id="map"></div>
 
-      <record-list></record-list>
+      <record-list
+        v-bind:region="region"
+        v-bind:records="records">
+      </record-list>
       
     </div>
   </div>
@@ -52,11 +57,11 @@
 </script>
 
 <script>
-  // Global vue components
-  var components = {};
+  // Global objects
+  var gameData, app, map;
 
-  window.onload = function () {
-    var gameData = getGameData();
+  function init () {
+    gameData = getGameData();
 
     // console.log(gameData.record);
     // console.log(gameData.record.map(function (r) { return r.regionCode; }));
@@ -64,16 +69,14 @@
     // gameData.record.forEach(function (r) { console.log([r.attacker.point, r.defender.point, r.attacker.win, r.defender.win]); });
     // gameData.record.forEach(function (r) { console.log(r.datetime); });
 
-    initVueComponents(gameData);
-
-    components.map = initMap(gameData.territory);
-    // components.recordList = initRecordList(gameData.record);
+    app = initVue(gameData);
+    map = initMap(gameData);
   };
 
   /**
    * Initializing vue components
    */
-  function initVueComponents (data) {
+  function initVue (gameData) {
     Vue.component('user-card', {
       template: `
         <div class="column">
@@ -99,7 +102,6 @@
         imageStyle: function () { return { opacity: this.user.result === RESULT.LOSE ? 0.2 : 1.0 }; }
       }
     });
-
     
     Vue.component('record-row', {
       template: `
@@ -112,7 +114,7 @@
           <!-- // Record header -->
 
           <!-- Record body -->
-          <div class="ui horizontal segments" style="display: none;">
+          <div class="ui horizontal segments">
             <div class="ui segment user-crew-roaster">
               <p v-text="record.attacker.info.crew"></p>
             </div>
@@ -162,9 +164,7 @@
       props: ['record'],
       computed: {
         formattedDate: function () {
-          // console.log(typeof this.record.datetime);
-          // return this.record.datetime.toJSON();
-          return this.record.datetime.getTime();
+          return moment(this.record.datetime).format('YYYY-MM-DD HH:mm');
         }
       }
     });
@@ -173,24 +173,27 @@
       template: `
         <div>
           <record-row
-            v-for="(r, index) in this.filteredRecords()"
+            v-for="(r, index) in filteredRecords"
             v-bind:record="r"
             v-bind:key="index">
           </record-row>
         </div>
       `,
-      data: function () {
-        return {
-          region: null,
-          records: data.record
-        }
-      },
+      props: ['region', 'records'],
       computed: {
         filteredRecords: function () {
           var _regionCode = this.region;
-          return this.records
-            .filter(function (r) { return _regionCode == null || _regionCode === r.region.code; })
-            .sort(function (p, n) { return p.datetime < n.datetime; });
+          return _.orderBy(this.records.filter(function (r) { return _regionCode == null || _regionCode === r.region.code; }), ['datetime'], ['desc']);
+        }
+      }
+    });
+
+    return new Vue({
+      el: '#app',
+      data: function () {
+        return {
+          region: null,
+          records: gameData.record
         }
       }
     });
@@ -199,7 +202,7 @@
   /**
    * Initializing leaflat map
    */
-  function initMap (territoryData) {
+  function initMap (gameData) {
     var map = L.map('map').setView([37.5664700, 126.9779630], 16);
 
     map.on('click', function () {
@@ -207,7 +210,7 @@
           if (!l.setStyle) return;
           
           l.setStyle({ fillOpacity: '0.5' });
-          components.recordList._data.region = null;
+          app.region = null;
         });
       });
 
@@ -225,7 +228,7 @@
     ).addTo(map);
 
     // Adding polygons
-    L.geoJSON(territoryData, { style: generateTerritoryStyle })
+    L.geoJSON(gameData.territory, { style: generateTerritoryStyle })
       .on('click', onClickTerritory)
       .addTo(map);
 
@@ -237,26 +240,6 @@
 
     return map;
   }
-  
-  // /**
-  //  * Initializing record list vue instance
-  //  */
-  // function initRecordList (records) {
-  //   return new Vue({
-  //     el: '#record-list',
-  //     data: {
-  //       region: null
-  //     },
-  //     computed: {
-  //       filteredRecords: function () {
-  //         var _regionCode = this.region;
-  //         return records
-  //           .sort(function (p, n) { return p.datetime < n.datetime; })
-  //           .filter(function (r) { return _regionCode == null || _regionCode === r.region.code; });
-  //       }
-  //     }
-  //   });
-  // }
 
   /**
    * Generate territory style
@@ -272,32 +255,40 @@
       bubblingMouseEvents: false
     };
 
-    var i = f.properties.index;
-
-    if (i < 5) {
-      style.fillColor = 'red';
-    } else if (5 <= i && i < 15) {
-      style.fillColor = 'blue';
-    } else if (15 <= i && i < 22 ) {
-      style.fillColor = 'purple';
-    } else if (31 <= i) {
-      style.fillColor = 'yellow';
+    // Update territory occupation
+    // console.log(f.properties);
+    if (!!f.properties.occupiedBy) {
+      style.fillColor = f.properties.occupiedBy.color;
     }
+
+    // var i = f.properties.index;
+
+    // if (i < 5) {
+    //   style.fillColor = 'red';
+    // } else if (5 <= i && i < 15) {
+    //   style.fillColor = 'blue';
+    // } else if (15 <= i && i < 22 ) {
+    //   style.fillColor = 'purple';
+    // } else if (31 <= i) {
+    //   style.fillColor = 'yellow';
+    // }
 
     return style;
   }
 
   function onClickTerritory (t) {
     // console.log('onclick territory', t);
-    components.map.openTooltip('You clicked here!', t.latlng);
-    components.map.eachLayer(function (l) {
+    map.openTooltip(`You clicked here! [${t.layer.feature.properties.code}]`, t.latlng);
+    map.eachLayer(function (l) {
       if (!l.setStyle) return;
       
       l.setStyle({ fillOpacity: t.layer._leaflet_id === l._leaflet_id ? '0.8' : '0.5' });
-      components.recordList._data.region = t.layer.feature.properties.code || null;
+      app.region = t.layer.feature.properties.code || null;
     });
     
   }
+
+  window.onload = init;
 </script>
 </body>
 </html>
